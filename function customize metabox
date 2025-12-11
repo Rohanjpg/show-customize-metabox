@@ -1,0 +1,192 @@
+<?php 
+
+
+// --------------------------------------------------------------- show Customizer section template wise --------------------------------------------------\\
+
+
+
+
+/**
+ * Add Template-Specific Customizer Metabox for Page Editor
+ */
+add_action('add_meta_boxes', function() {
+    add_meta_box(
+        'template_customizer_lock',
+        'Template Customizer',
+        'template_customizer_lock_cb',
+        'page',
+        'side',
+        'high'
+    );
+});
+
+/**
+ * Callback for Template Customizer iframe
+ */
+function template_customizer_lock_cb($post) {
+    // Get current template
+    $template_slug = get_page_template_slug($post->ID);
+
+    if (empty($template_slug)) {
+        echo '<p style="color:#888;">This page uses the default template — no linked Customizer sections.</p>';
+        return;
+    }
+
+        // --- Define your mapping between templates and sections ---
+        $template_sections = array(
+			
+            'templates/Home_tem.php' => array('connect_with_section','scupe_clients_section', 'get_support_section','scupe_faq_section','features_section', 'get_more_section','Home_Hero_sec','social_proof_section','how_it_works_section','problem_section','why_teams_love_section','unlock_id_section'),   
+			
+            'templates/About_tem.php' => array('about_meet_the_founder','about_banner_section','about_clients_section','about_why_choose_us_section','about_our_mission_section','about_meet_the_founder_section','about_get_support_section','about_get_more_marketing_section','traditional_info_section','about_better_data_section','about_Marketing_section'),
+			
+			            'templates/Solutions_tem.php' => array('soluction_banner_section','generate_leads_section','get_more_marketing_section','soluction_get_Support_section','identify_visitors_section','reveal_contacts_section','soluction_faq_section','solution_social_proof_section','trigger_workflows_section'),
+        
+		  'templates/Contact_tem.php'  => array('contect_banner_section','contect_Identify_section','contact_talk_to_us_section','contact_support_section'),
+			
+			'templates/Blog_tem.php' => array('breadcrumb_section_blog','uniq_support_bottom_banner_section'),
+			
+            'templates/Success_stories.php' => array('breadcrumb_section','success_stories_bottom_banner'),
+			
+			'templates/Hire_us_tem.php' => array('hire_result_section','hire_us_bottom_banner_section','hire_us_banner_section','formula_section','hire_word_section','texnomey_section'),
+		);
+
+    // Find matching template
+    if (!isset($template_sections[$template_slug])) {
+        echo '<p style="color:#888;">This page’s template has no linked Customizer sections.</p>';
+        return;
+    }
+
+    // Pass section IDs as a comma-separated string
+    $sections = implode(',', $template_sections[$template_slug]);
+
+    // Build the Customizer URL WITHOUT autofocus (so sidebar works)
+    $customizer_url = add_query_arg(
+        array(
+            'url' => get_permalink($post->ID),
+            'locked' => 'true',
+            'sections' => $sections,
+            'template' => $template_slug
+        ),
+        admin_url('customize.php')
+    );
+
+    // Display iframe
+    echo '<div style="width:100%; overflow:hidden; border:1px solid #ccc;">';
+    echo '<iframe src="' . esc_url($customizer_url) . '" style="width:100%; height:600px; border:0;" frameborder="0"></iframe>';
+    echo '</div>';
+}
+
+/**
+ * Hide admin bar and lock Customizer controls (no close/back buttons)
+ */
+add_action('customize_controls_enqueue_scripts', function() {
+    if (isset($_GET['locked']) && $_GET['locked'] === 'true') {
+        ?>
+        <style>
+            #wpadminbar { display: none !important; }
+            html { margin-top: 0 !important; }
+
+            /* Hide close/back buttons and preview toggle */
+            .customize-controls-close,
+            .customize-controls-preview-toggle,
+            .customize-controls-preview-toggle-button {
+                display: none !important;
+            }
+
+            [class*="close"], [class*="back"] {
+                pointer-events: none !important;
+            }
+
+/* Keep section navigation arrows visible and clickable */
+.customize-section-back , .customize-panel-back{
+    display: block !important;
+    pointer-events: auto !important;
+}
+
+        </style>
+        <?php
+    }
+});
+
+/**
+ * Hide admin bar in Customizer preview
+ */
+add_action('after_setup_theme', function() {
+    if (is_customize_preview() && isset($_GET['locked']) && $_GET['locked'] === 'true') {
+        add_filter('show_admin_bar', '__return_false');
+    }
+});
+
+/**
+ * Keep only the allowed Customizer sections for this template
+ */
+add_action('customize_register', function($wp_customize) {
+    if (isset($_GET['sections'])) {
+        $allowed_sections = explode(',', sanitize_text_field($_GET['sections']));
+
+        // Remove sections not in the allowed list
+        foreach ($wp_customize->sections() as $id => $section) {
+            if (!in_array($id, $allowed_sections, true)) {
+                $wp_customize->remove_section($id);
+            }
+        }
+
+        // Optional: focus on the first section
+        if (!empty($allowed_sections)) {
+            $first_section = $allowed_sections[0];
+            add_action('customize_controls_print_footer_scripts', function() use ($first_section) {
+                ?>
+                <script>
+                //wp.customize.section('<?php echo esc_js($first_section); ?>').focus();
+                </script>
+                <?php
+            });
+        }
+    }
+});
+
+
+
+
+--------------------------------------------------------------------------
+
+
+// ------------------------------------------------  this remove home-page  extra metabox ---------------------------------------------//
+
+
+function mytheme_customize_homepage_metaboxes() {
+    global $post;
+
+    // Only for the 'page' post type
+    if( get_post_type() !== 'page' ) return;
+
+    // Only for Home Page by slug (replace 'home-page' with your slug)
+    $template = get_page_template_slug($post->ID);
+    if ( $template !== 'templates/Home_tem.php' && $template !== 'templates/About_tem.php' && $template !== 'templates/Contact_tem.php' && $template !== 'templates/Blog_tem.php' && $template !== 'templates/Success_stories_tem.php' && $template !== 'templates/Solutions_tem.php' && $template !== 'templates/Success_stories.php' && $template !== 'templates/Hire_us_tem.php') return;
+
+    // Keep: Publish & Page Attributes
+    // Remove all others
+    remove_meta_box('slugdiv', 'page', 'normal');          // Slug
+    remove_meta_box('authordiv', 'page', 'normal');        // Author
+    remove_meta_box('commentstatusdiv', 'page', 'normal'); // Discussion
+    remove_meta_box('commentsdiv', 'page', 'normal');      // Comments
+    remove_meta_box('revisionsdiv', 'page', 'normal');     // Revisions
+    remove_meta_box('trackbacksdiv', 'page', 'normal');    // Trackbacks
+    remove_meta_box('postcustom', 'page', 'normal');       // Custom Fields
+    remove_post_type_support('page', 'editor');          // description 
+}
+add_action('add_meta_boxes', 'mytheme_customize_homepage_metaboxes', 99);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
