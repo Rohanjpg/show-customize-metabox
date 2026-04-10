@@ -6,6 +6,8 @@
 
 
 
+
+
 /**
  * Add Template-Specific Customizer Metabox for Page Editor
  */
@@ -34,21 +36,14 @@ function template_customizer_lock_cb($post) {
 
         // --- Define your mapping between templates and sections ---
         $template_sections = array(
-			
-            'templates/Home_tem.php' => array('connect_with_section','scupe_clients_section', 'get_support_section','scupe_faq_section','features_section', 'get_more_section','Home_Hero_sec','social_proof_section','how_it_works_section','problem_section','why_teams_love_section','unlock_id_section'),   
-			
-            'templates/About_tem.php' => array('about_meet_the_founder','about_banner_section','about_clients_section','about_why_choose_us_section','about_our_mission_section','about_meet_the_founder_section','about_get_support_section','about_get_more_marketing_section','traditional_info_section','about_better_data_section','about_Marketing_section'),
-			
-			            'templates/Solutions_tem.php' => array('soluction_banner_section','generate_leads_section','get_more_marketing_section','soluction_get_Support_section','identify_visitors_section','reveal_contacts_section','soluction_faq_section','solution_social_proof_section','trigger_workflows_section'),
-        
-		  'templates/Contact_tem.php'  => array('contect_banner_section','contect_Identify_section','contact_talk_to_us_section','contact_support_section'),
-			
-			'templates/Blog_tem.php' => array('breadcrumb_section_blog','uniq_support_bottom_banner_section'),
-			
-            'templates/Success_stories.php' => array('breadcrumb_section','success_stories_bottom_banner'),
-			
-			'templates/Hire_us_tem.php' => array('hire_result_section','hire_us_bottom_banner_section','hire_us_banner_section','formula_section','hire_word_section','texnomey_section'),
-		);
+            
+            'templates/About_template.php' => array('apx_about_banner_section','apx_about_panel'),   
+            'templates/contact_tem.php' => array('apx_contact_page_section','apx_contact_page_panel'),
+            'templates/Homepage_template.php' => array('apx_home_page_panel','apx_home_page_section','apx_home_page_physician_choose','apx_home_page_compliant_peptides'),
+            'templates/Peptides_template.php' => array('apx_Peptides_banner_section','apx_Peptides_panel'),
+            'templates/how_it_works_tem.php' => array('apx_how_it_works_template_section','apx_how_it_works_template_panel'),
+            'templates/Montana_template.php' => array('apx_montana_template_hero_banner_section','apx_montana_template_middle_section','apx_montana_template_second_middle_section','apx_montana_template_third_middle_section','apx_montana_template_panel'),
+        );
 
     // Find matching template
     if (!isset($template_sections[$template_slug])) {
@@ -69,7 +64,6 @@ function template_customizer_lock_cb($post) {
         ),
         admin_url('customize.php')
     );
-
     // Display iframe
     echo '<div style="width:100%; overflow:hidden; border:1px solid #ccc;">';
     echo '<iframe src="' . esc_url($customizer_url) . '" style="width:100%; height:600px; border:0;" frameborder="0"></iframe>';
@@ -93,9 +87,9 @@ add_action('customize_controls_enqueue_scripts', function() {
                 display: none !important;
             }
 
-            [class*="close"], [class*="back"] {
+/*             [class*="close"], [class*="back"] {
                 pointer-events: none !important;
-            }
+            } */
 
 /* Keep section navigation arrows visible and clickable */
 .customize-section-back , .customize-panel-back{
@@ -118,32 +112,45 @@ add_action('after_setup_theme', function() {
 });
 
 /**
- * Keep only the allowed Customizer sections for this template
+ * Keep only the allowed Customizer sections/panels for this template.
+ * Must run late: other theme customize_register callbacks are declared below
+ * this hook and would otherwise add sections after we strip them.
  */
 add_action('customize_register', function($wp_customize) {
-    if (isset($_GET['sections'])) {
-        $allowed_sections = explode(',', sanitize_text_field($_GET['sections']));
+    if (empty($_GET['locked']) || $_GET['locked'] !== 'true' || empty($_GET['sections'])) {
+        return;
+    }
 
-        // Remove sections not in the allowed list
-        foreach ($wp_customize->sections() as $id => $section) {
-            if (!in_array($id, $allowed_sections, true)) {
-                $wp_customize->remove_section($id);
-            }
-        }
+    $raw = sanitize_text_field(wp_unslash($_GET['sections']));
+    $allowed = array_filter(array_map('trim', explode(',', $raw)));
 
-        // Optional: focus on the first section
-        if (!empty($allowed_sections)) {
-            $first_section = $allowed_sections[0];
-            add_action('customize_controls_print_footer_scripts', function() use ($first_section) {
-                ?>
-                <script>
-                //wp.customize.section('<?php echo esc_js($first_section); ?>').focus();
-                </script>
-                <?php
-            });
+    if (empty($allowed)) {
+        return;
+    }
+
+    foreach ($wp_customize->sections() as $id => $section) {
+        if (!in_array($id, $allowed, true)) {
+            $wp_customize->remove_section($id);
         }
     }
-});
+
+    foreach ($wp_customize->panels() as $id => $panel) {
+        if (!in_array($id, $allowed, true)) {
+            $wp_customize->remove_panel($id);
+        }
+    }
+
+    if (!empty($allowed)) {
+        $first_section = $allowed[0];
+        add_action('customize_controls_print_footer_scripts', function() use ($first_section) {
+            ?>
+            <script>
+            //wp.customize.section('<?php echo esc_js($first_section); ?>').focus();
+            </script>
+            <?php
+        });
+    }
+}, PHP_INT_MAX);
 
 
 
